@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace libs\worldbackup\async;
+namespace nooby\worldbackup\async;
 
 use pocketmine\nbt\{TreeRoot, BigEndianNbtSerializer,ReaderTracker};
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\scheduler\AsyncTask;
 
-use isrdxv\Practice\Loader;
+use pocketmine\Server;
 
 /**
  * Classa CreateCustomBackupAsync
  * @package nooby\worldbackup\async
  */
-class CreateCustomBackupAsync extends AsyncTask
+class CreateCustomBackup extends AsyncTask
 {
     
     /** @var string */
@@ -62,8 +62,8 @@ class CreateCustomBackupAsync extends AsyncTask
     public function onCompletion(): void
     {
         $result = $this->getResult();
-        if (is_dir(Loader::getInstance()->grtServer()->getDataPath() . $result . DIRECTORY_SEPARATOR)) {
-          Loader::getInstance()->getLogger()->info("Se instalo correctamente en: " . $this->time);
+        if (is_dir(Server::getInstance()->getDataPath() . $result . DIRECTORY_SEPARATOR)) {
+          Server::getInstance()->getLogger()->info("[WorldBackupLib: Se instalo correctamente en: " . $this->time ."]");
         }
     }
     
