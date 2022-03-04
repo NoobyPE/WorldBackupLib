@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace libs\worldbackup\async;
+namespace nooby\worldbackup\async;
 
 use pocketmine\scheduler\AsyncTask;
 
@@ -10,7 +10,7 @@ use pocketmine\scheduler\AsyncTask;
  * Class CreateBackupAsync
  * @package nooby\worldbackup\async
  */
-class CreateBackupAsync extends AsyncTask
+class CreateBackup extends AsyncTask
 {
     
     /** @var string */
