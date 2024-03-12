@@ -2,4 +2,9 @@
 build-by-default: true
 branches:
 - main
+projects:
+  WorldBackupLib:
+    path: ""
+    model: virion
+    type: library
 ...
