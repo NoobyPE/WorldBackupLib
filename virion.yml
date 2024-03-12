@@ -1,5 +1,6 @@
 name: WorldBackupLib
-antigen: nooby\worldbackup
-api: [4.0.0,4.2.0]
+api: [5.0.0]
 php: 8.0
-authors: [iSrDxv,BlitzDS]
+antigen: nooby\worldbackup
+version: 1.0.0
+authors: [iSrDxv]

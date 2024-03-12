@@ -1,16 +1,18 @@
 <?php
 
-
-
 declare(strict_types=1);
 
 namespace nooby\worldbackup;
 
+use pocketmine\Server;
+
+use exodus\worldbackup\async\DeleteBackup;
+
 use nooby\worldbackup\async\CreateBackup;
 use nooby\worldbackup\async\CreateCustomBackup;
 use nooby\worldbackup\async\RemoveBackup;
-use pocketmine\Server;
-use RuntimeException;
+
+use pocketmine\utils\AssumptionFailedError;
 
 /**
  * Class WorldBackupLib
@@ -18,70 +20,92 @@ use RuntimeException;
  */
 final class WorldBackupLib
 {
-    
     /**
-     * @param string $worldName
-     * @param string $destination
-     * @throws RuntimeException
+     * @param string $source
+     * @param string $target
      */
-    public static function createBackup(string $worldName, string $destination): void
+    static function copyDirectory($source, $target): void
     {
-        $worldManager = Server::getInstance()->getWorldManager();
-        
-        if (!$worldManager->isWorldGenerated($worldName)) {
-            throw new RuntimeException('The world `$worldName` is not generated');
+      if (is_dir($target)) {
+        @mkdir($source); //close the sv, so i ignore the errors
+        $d = dir($target);
+
+        while(FALSE !== ($entry = $d->read())) {
+          if ($entry === "." or $entry === "..") {
+            continue;
+          }
+          $newEntry = $target . DIRECTORY_SEPARATOR . $entry;
+          if (is_dir($newEntry)) {
+            self::copyDirectory($source . DIRECTORY_SEPARATOR . $entry, $newEntry);
+            continue;
+          }
+          copy($newEntry, $source . DIRECTORY_SEPARATOR . $entry);
         }
-        
-        if (!$worldManager->isWorldLoaded($worldName)) {
-            throw new RuntimeException('The world `$worldName` is not loaded');
-        }
-        
-        if (!is_dir($destination)) {
-            throw new RuntimeException('Destination is not a directory (`$destination`)');
-        }
-        $source = Server::getInstance()->getDataPath() . 'worlds' . DIRECTORY_SEPARATOR . $worldName;
-        Server::getInstance()->getAsyncPool()->submitTask(new CreateBackup($source, $destination));
+        $d->close();
+      } else {
+        copy($source, $target);
+      }
     }
-    
-    
+
     /**
-     * @param string $worldName
-     * @param string $destination
-     * @param string $newName
-     * @throws RuntimeException
+     * @param string $directory
      */
-    public static function createCustomBackup(string $worldName, string $destination, string $newName): void
+    static function deleteDirectory(string $directory): void
+    {
+      if (substr($directory, strlen($directory) - 1, 1) !== "/") {
+        $directory .= DIRECTORY_SEPARATOR;
+        $files = glob($directory . "*", GLOB_MARK);
+        foreach($files as $file) {
+          if (is_dir($file)) {
+            self::deleteDirectory($directory . DIRECTORY_SEPARATOR . $file);
+          } else {
+            unlink($file);
+          }
+        }
+      }
+      rmdir($directory);
+    }
+
+    /**
+     * @param string $newName
+     * @param string $worldName
+     * @throws AssumptionFailedError
+     */
+    public static function createBackup(string $newName, string $worldName): void
     {
         $worldManager = Server::getInstance()->getWorldManager();
         
         if (!$worldManager->isWorldGenerated($worldName)) {
-            throw new RuntimeException('The world `$worldName` is not generated');
+            throw new AssumptionFailedError('The world \"$worldName\" is not generated');
         }
         
+        $worldOld = $worldManager->getWorldByName($worldName);
         if (!$worldManager->isWorldLoaded($worldName)) {
-            throw new RuntimeException('The world `$worldName` is not loaded');
+            $worldOld->save();
         }
-        
-        if (!is_dir($destination)) {
-            throw new RuntimeException('Destination is not a directory (`$destination`)');
+        if ($worldOld !== null) {
+            $worldManager->unloadWorld($worldOld);
         }
-        
-        if ($worldManager->isWorldGenerated($newName)) {
-            throw new RuntimeException('The new name already exists in another world');
+
+        $to = Server::getInstance()->getDataPath() . "worlds" . DIRECTORY_SEPARATOR . $newName;
+        $from = Server::getInstance()->getDataPath() . "worlds" . DIRECTORY_SEPARATOR . $worldName;
+
+        if (!is_dir($from)) {
+            throw new AssumptionFailedError("the World is not a directory (\"$newName\")");
         }
-        $source = Server::getInstance()->getDataPath() . 'worlds' . DIRECTORY_SEPARATOR . $worldName;
-        Server::getInstance()->getAsyncPool()->submitTask(new CreateCustomBackup($source, $destination, $newName));
+
+        Server::getInstance()->getAsyncPool()->submitTask(new CreateBackup($newName, $to, $from));
     }
     
     /**
      * @param string $source
      */
-    public static function removeBackup(string $source): void
+    public static function removeBackup(string $source): bool
     {
         if (!is_dir($source)) {
-            throw new RuntimeException('Source is not a directory (`$source`)');
+            return false;
         }
-        Server::getInstance()->getAsyncPool()->submitTask(new RemoveBackup($source));
+        Server::getInstance()->getAsyncPool()->submitTask(new DeleteBackup($source));
+        return true;
     }
 }
-

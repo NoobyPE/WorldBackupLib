@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 namespace nooby\worldbackup\async;
 
+use Exception;
+use RuntimeException;
+use nooby\worldbackup\WorldBackupLib;
 use pocketmine\scheduler\AsyncTask;
+use pocketmine\Server;
+use pocketmine\world\format\io\data\BaseNbtWorldData;
 
 /**
  * Class CreateBackupAsync
@@ -14,57 +19,55 @@ class CreateBackup extends AsyncTask
 {
     
     /** @var string */
-    private string $source, $destination;
+    private string $name, $to, $from;
+
     /** @var float */
     private float $time;
     
     /**
-     * CreateBackupAsync construct.
-     * @param string $source
-     * @param strkng $destination
+     * CreateBackup construct.
+     * @type Async
+     * @param string $name
+     * @param string $to
+     * @param string $from
      */
-    public function __construct(string $source, string $destination)
+    public function __construct(string $name, string $to, string $from)
     {
-        $this->source = $source;
-        $this->destination = $destination;
+        $this->name = $name;
+        $this->to = $to;
+        $this->from = $from;
         
         $this->time = microtime(true);
     }
     
     public function onRun(): void
     {
-        $levelName = basename($this->source);
-        $this->copySource($this->source, $this->destination . DIRECTORY_SEPARATOR . $levelName);
+        try {
+            WorldBackupLib::copyDirectory($this->to, $this->from);
+        }catch(Exception $e) {
+            Server::getInstance()->getLogger()->info($e->getMessage());
+        }
     }
     
     public function onCompletion(): void
     {
-        // thanks dylan :)
-    }
-    
-    /**
-     * @param string $source
-     * @param string $target
-     */
-    private function copySource(string $source, string $target): void
-    {
-        if (is_dir($source)) {
-            @mkdir($target);
-            $d = dir($source);
+        $worldManager = Server::getInstance()->getWorldManager();
+        if (!$worldManager->isWorldLoaded($this->name)) {
+            $worldManager->loadWorld($this->name, true);
+        }
 
-            while (FALSE !== ($entry = $d->read())) {
-                if ($entry === '.' || $entry === '..')
-                    continue;
-                $Entry = $source . DIRECTORY_SEPARATOR . $entry;
+        $world = $worldManager->getWorldByName($this->name);
+        if (empty($world)) {
+            throw new RuntimeException("the World does not exist of the New Name");
+        }
 
-                if (is_dir($Entry)) {
-                    $this->copySource($Entry, $target . DIRECTORY_SEPARATOR . $entry);
-                    continue;
-                }
-                @copy($Entry, $target . DIRECTORY_SEPARATOR . $entry);
-            }
-            $d->close();
-        } else
-            @copy($source, $target);
+        $worldData = $world->getProvider()->getWorldData();
+        if (!$worldData instanceof BaseNbtWorldData) {
+            return;
+        }
+
+        $worldData->getCompoundTag()->setString("LevelName", $this->name);
+        Server::getInstance()->getLogger()->notice("Timeout: " . microtime(true) - $this->time);
     }
+
 }
