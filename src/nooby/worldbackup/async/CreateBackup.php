@@ -49,10 +49,14 @@ class CreateBackup extends AsyncTask
         }catch(Exception $e) {
             Server::getInstance()->getLogger()->info($e->getMessage());
         }
+        $this->setResult(true);
     }
     
     public function onCompletion(): void
     {
+        if (!$this->hasResult()) {
+            return;
+        }
         $worldManager = Server::getInstance()->getWorldManager();
         if (!$worldManager->isWorldLoaded($this->name)) {
             $worldManager->loadWorld($this->name, true);
