@@ -1,6 +1,6 @@
 <?php
 
-namespace exodus\worldbackup\async;
+namespace nooby\worldbackup\async;
 
 use Exception;
 use nooby\worldbackup\WorldBackupLib;
